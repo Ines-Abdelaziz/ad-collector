@@ -1,11 +1,16 @@
-// Replace 'YOUR_API_KEY' with your actual YouTube Data API key
-const API_KEY = '';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import {API_KEY,SUPABASE_KEY,SUPABASE_URL} from '../env.ts'
 
+
+const apiKey = API_KEY
 
 console.log('Content script loaded.');
+
+
 // Check if the current website is YouTube
 function isYouTube(): boolean {
-    return window.location.hostname.includes('youtube.com');
+        return window.location.hostname.includes('youtube.com');
 }
 
 // Check if a video is playing
@@ -22,7 +27,7 @@ function getVideoId(): string | null {
 
 // Fetch video details using the YouTube Data API
 async function fetchVideoDetails(videoId: string): Promise<void> {
-    const apiUrl = `https://www.googleapis.com/youtube/v3/videos?id=${videoId}&part=snippet&key=${API_KEY}`;
+    const apiUrl = `https://www.googleapis.com/youtube/v3/videos?id=${videoId}&part=snippet&key=${apiKey}`;
 
     try {
         const response = await fetch(apiUrl);
@@ -47,7 +52,7 @@ function checkYouTubeVideo(): void {
 
         if (videoId) {
             console.log('YouTube video is playing. Video ID:', videoId);
-           // fetchVideoDetails(videoId);
+           fetchVideoDetails(videoId);
         } else {
             console.log('Unable to retrieve video ID.');
         }
@@ -56,28 +61,65 @@ function checkYouTubeVideo(): void {
     }
 }
 
-
-
-// Run the initial check
-checkYouTubeVideo();
-
-// Observe changes in the document, and run the check only when relevant changes occur
-const observer = new MutationObserver((mutations) => {
-    for (const mutation of mutations) {
-        // Check for changes to the video element or its attributes
-        if (
-            mutation.type === 'attributes' &&
-            mutation.target instanceof Element &&
-            mutation.target.tagName.toLowerCase() === 'video'
-        ) {
-            checkYouTubeVideo();
-            break;
-        }
+function isAdDisplaying(): boolean {
+    const adElement = document.querySelector('.ytp-ad-player-overlay');
+    if (adElement !== null) {
+        console.log('An ad is currently displaying.');
     }
+    return adElement !== null;
+}
+console.log('ad',isAdDisplaying());
+// Run the initial check
+function simulateButtonClick(button: HTMLButtonElement) {
+    const event = new MouseEvent('click', {
+      bubbles: true,
+      cancelable: true,
+      view: window
+    });
+    button.dispatchEvent(event);
+  }
+  let adIsCurrentlyDisplaying = isAdDisplaying();
+  const observer = new MutationObserver(function(mutations) {
+    mutations.forEach(function(mutation) {
+        // Process each mutation (addedNodes, removedNodes, etc.)
+        if (!adIsCurrentlyDisplaying && isAdDisplaying()) {
+            adIsCurrentlyDisplaying = true;
+            console.log('An ad is currently displaying.');
+
+            // Simulate click on ad button but hidden in the background
+            const adButton = document.querySelector('.ytp-ad-button.ytp-ad-button-link.ytp-ad-clickable') as HTMLButtonElement;
+            simulateButtonClick(adButton);
+            adIsCurrentlyDisplaying = false;
+        } else if (adIsCurrentlyDisplaying && !isAdDisplaying()) {
+            adIsCurrentlyDisplaying = false;
+            console.log('No ad is currently displaying.');
+        }
+    });
 });
+  
+  // Configuration of the observer:
+  const config = { attributes: true, childList: true, subtree: true };
+  
+  // Select the target node you want to observe
+  const targetNode = document.body;
+  
+  // Start observing the target node for configured mutations
+  observer.observe(targetNode, config);
 
-// Specify the target node and the configuration options for the observer
-const config = { attributes: true, attributeFilter: ['src'], childList: true, subtree: true };
 
-// Start observing the target node for configured mutations
-observer.observe(document.body, config);
+// // Observe changes in the document, and run the check only when relevant changes occur
+// const observer = new MutationObserver((mutations) => {
+//     for (const mutation of mutations) {
+//         // Check for changes to the video element or its attributes
+       
+//             isAdDisplaying();
+//             break;
+        
+//     }
+// });
+
+// // Specify the target node and the configuration options for the observer
+// const config = { childList: true, subtree: true };
+
+// // Start observing the target node for configured mutations
+// observer.observe(document.body, config);

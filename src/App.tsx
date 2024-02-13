@@ -1,35 +1,66 @@
-// import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
-
-
-
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import React, { useState,useEffect } from 'react';
+import './App.css';
+import Logo from './assets/logo.png';
+import { getAccessToken,Signout,checkForAccessToken  } from "./auth";
+import { getUserInfo } from './user-info';
 function App() {
-  
+  const [session,setSession] = useState(null);
+ 
+
+  useEffect(() => {
+    async function checkSession() {
+      const accessToken = await checkForAccessToken();
+      console.log(accessToken);
+      
+      setSession(accessToken as any)
+    }
+    checkSession();
+    
+    
+     
+    }, []);
+  async function handleLoginClick() {
+      //get the data of this promise 
+     const accessToken = await getAccessToken();
+     setSession(accessToken as any);
+     getUserInfo(accessToken as any);
+      
+  }
+  function handleDashboardClick() {
+    // Navigate to dashboard or perform relevant action
+    console.log("Redirecting to user dashboard...");
+  }
+  async function handleSignoutClick() {
+    const { session } = await chrome.storage.local.get('session');
+    Signout(session);
+    setSession(null);
+  }
 
   return (
     <>
       <div>
-        <a href="https://vitejs.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+        <img src={Logo} className="logo" alt="Logo" />
       </div>
-      <h1>Vite + React</h1>
       <div className="card">
-        
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
+        {session ? (
+          <>
+            <h2>Welcome User!</h2>
+            <p>This extension collects the ads that are shown to you for research purposes.</p>
+            <button onClick={handleDashboardClick}>View Dashboard</button>
+            <button onClick={handleSignoutClick}>Sign out</button>
+          </>
+        ) : (
+          <>
+            <h2>Video Ad Research Extension</h2>
+            <p>Log in with Google to get started.</p>
+            <button id='google' onClick={handleLoginClick}>Log in with Google</button>
+            
+          </>
+        )}
       </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
     </>
-  )
+  );
 }
 
-export default App
+export default App;
