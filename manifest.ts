@@ -7,6 +7,11 @@ export const manifest: ManifestV3Export = {
   action: {
     default_popup: 'index.html',
   },
+  icons: {
+    16: "icon-16.png",
+    48: "icon-48.png",
+    128: "icon-128.png"
+  },
 
   background: {
     service_worker: 'src/service-worker.ts',
@@ -16,7 +21,7 @@ export const manifest: ManifestV3Export = {
   },
   oauth2: {
     client_id: "852662586348-50t7sehl92p5m9vkb97rnggbcp5pvvgh.apps.googleusercontent.com",
-    scopes: ["openid", "email", "profile",'https://www.googleapis.com/auth/userinfo.profile','https://www.googleapis.com/auth/user.birthday.read','https://www.googleapis.com/auth/user.gender.read']
+    scopes: ["openid", "email", "profile",'https://www.googleapis.com/auth/userinfo.profile','https://www.googleapis.com/auth/user.birthday.read','https://www.googleapis.com/auth/user.gender.read','https://www.googleapis.com/auth/user.addresses.read']
   },
  
   permissions: [
@@ -40,7 +45,7 @@ export const manifest: ManifestV3Export = {
   content_scripts: [
     {       
     
-      run_at: "document_end",
+      run_at: "document_start",
       js: ['src/content-scrpt.ts'],
       matches: ['https://*/*', 'http://*/*','http://www.google.com/robots.txt*'],
     },

@@ -1,16 +1,11 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { createClient, User } from "@supabase/supabase-js";
-import {API_KEY, SUPABASE_KEY,SUPABASE_URL,googleClientId} from '../env.ts'
-export const supabase = createClient(
-  SUPABASE_URL,
-  SUPABASE_KEY
-);
 
 /* exported getAccessToken */
+import * as ls from "local-storage";
 
 const REDIRECT_URL = chrome.identity.getRedirectURL();
 const CLIENT_ID = "852662586348-50t7sehl92p5m9vkb97rnggbcp5pvvgh.apps.googleusercontent.com";
-const SCOPES = ["openid", "email", "profile",'https://www.googleapis.com/auth/userinfo.profile','https://www.googleapis.com/auth/user.birthday.read','https://www.googleapis.com/auth/user.gender.read'];
+const SCOPES = ["openid", "email", "profile",'https://www.googleapis.com/auth/userinfo.profile','https://www.googleapis.com/auth/user.birthday.read','https://www.googleapis.com/auth/user.gender.read','https://www.googleapis.com/auth/user.addresses.read'];
 const AUTH_URL =
 `https://accounts.google.com/o/oauth2/auth\
 ?client_id=${CLIENT_ID}\
@@ -41,13 +36,15 @@ it seems to be "aud".
 */
 export async function validate(redirectURL: string) {
   const accessToken = extractAccessToken(redirectURL);
-  if (!accessToken) {
+if (!accessToken) {
     throw "Authorization failure";
-  }
-  const validationURL = `${VALIDATION_BASE_URL}?access_token=${accessToken}`;
-  const validationRequest = new Request(validationURL, {
+}
+chrome.storage.local.set({accessToken: accessToken});
+ls.set<string>('accessToken', accessToken);
+const validationURL = `${VALIDATION_BASE_URL}?access_token=${accessToken}`;
+const validationRequest = new Request(validationURL, {
     method: "GET"
-  });
+});
 
  function checkResponse(response: Response) {
     return new Promise((resolve, reject) => {
@@ -81,22 +78,23 @@ export function authorize() {
       //convert promise<string to string typescript
 
 export async function checkForAccessToken(): Promise<string> {
-  const url = await chrome.identity.launchWebAuthFlow({
-    interactive: false,
-    url: AUTH_URL
+  const url = await  chrome.identity.launchWebAuthFlow({
+      interactive: true,
+      url: AUTH_URL,
   });
-  const accessToken = extractAccessToken(url!);
+ const accessToken = extractAccessToken(url!);
   return accessToken as string;
 }
 
 export function getAccessToken() {
   return authorize().then((redirectURL: string | undefined) => validate(redirectURL!));
 }
-export async function Signout(token:string) {
+export async function Signout() {
   chrome.identity.launchWebAuthFlow(
     { 'url': 'https://accounts.google.com/logout' }
 );
-    
+ls.clear();
+
   
 
 
@@ -104,12 +102,4 @@ export async function Signout(token:string) {
 
 
 
-    // const { data, error } = await supabase.auth.signInWithOAuth({
-    //   provider: 'google',
-    //   options: {
-    //     redirectTo: chrome.identity.getRedirectURL(),
-    //   },
-    // });
-    // if (error) throw error;
-    // await chrome.tabs.create({ url: data.url });
-
+  
