@@ -26,7 +26,7 @@ function App() {
    //get user info and redirect to dashboard
    const userId=ls.get<string>('userId');
    //open user dashboard with user id
-   window.open(`https://adcollector-youtube-dashboard.onrender.com`, '_blank');    
+   window.open(`https://adcollector-youtube-dashboard-1.onrender.com`, '_blank');    
   }
   async function handleSignoutClick() {
     Signout();
