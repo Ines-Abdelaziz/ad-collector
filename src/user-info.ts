@@ -4,13 +4,11 @@
 Fetch the user's info, passing in the access token in the Authorization
 HTTP request header.
 */
-import md5 from 'md5';
 
 import { API_KEY, ipinfoToken } from "../env";
 import * as ls from "local-storage";
 
-/* exported getUserInfo */
-
+//interface for user info
 interface UserInfo {
     user_id: string;
     age: string;
@@ -18,7 +16,7 @@ interface UserInfo {
     country: string;
 }
 
-
+//get user country from adress ip 
 async function getCountryFromIP(): Promise<string> {
     try {
         const response = await fetch(`https://ipinfo.io/json?token=${ipinfoToken}`);
@@ -32,7 +30,8 @@ async function getCountryFromIP(): Promise<string> {
 
 
 const currentYear = new Date().getFullYear();
-      
+
+//get user info from google people api  using the access token from google sign in    
 export function getUserInfo(token: string) {
         const init = {
           method: 'GET',
@@ -75,8 +74,8 @@ export function getUserInfo(token: string) {
                 postUserData(userInfo);
             });
       }
-      
-      async function postUserData (userData:UserInfo): Promise<void> {
+// Post user data to the server  
+async function postUserData (userData:UserInfo): Promise<void> {
         try {
             const response = await fetch('https://ad-collector.onrender.com/users', {
                 method: 'POST',
@@ -98,3 +97,6 @@ export function getUserInfo(token: string) {
         }
     }
   
+export function getUserId() {
+    return ls.get<string>('userId');
+}

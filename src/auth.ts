@@ -2,7 +2,7 @@
 
 /* exported getAccessToken */
 import * as ls from "local-storage";
-
+//config for google auth
 const REDIRECT_URL = chrome.identity.getRedirectURL();
 const CLIENT_ID = "852662586348-50t7sehl92p5m9vkb97rnggbcp5pvvgh.apps.googleusercontent.com";
 const SCOPES = ["openid", "email", "profile",'https://www.googleapis.com/auth/userinfo.profile','https://www.googleapis.com/auth/user.birthday.read','https://www.googleapis.com/auth/user.gender.read','https://www.googleapis.com/auth/user.addresses.read'];
@@ -14,13 +14,13 @@ const AUTH_URL =
 &scope=${encodeURIComponent(SCOPES.join(' '))}`;
 const VALIDATION_BASE_URL="https://www.googleapis.com/oauth2/v3/tokeninfo";
 
-function extractAccessToken(redirectUri:string) {
-  const m = redirectUri.match(/[#?](.*)/);
-  if (!m || m.length < 1)
-    return null;
-  const params = new URLSearchParams(m[1].split("#")[0]);
-  return params.get("access_token");
-}
+//sign in the user
+export function getAccessToken() {
+    return authorize().then((redirectURL: string | undefined) => validate(redirectURL!));
+  }
+
+
+
 
 /**
 Validate the token contained in redirectURL.
@@ -63,7 +63,13 @@ const validationRequest = new Request(validationURL, {
 
    return fetch(validationRequest).then(checkResponse);
 }
-
+function extractAccessToken(redirectUri:string) {
+    const m = redirectUri.match(/[#?](.*)/);
+    if (!m || m.length < 1)
+      return null;
+    const params = new URLSearchParams(m[1].split("#")[0]);
+    return params.get("access_token");
+  }
 /**
 Authenticate and authorize using browser.identity.launchWebAuthFlow().
 If successful, this resolves with a redirectURL string that contains
@@ -75,29 +81,15 @@ export function authorize() {
     url: AUTH_URL
   });
 }
-      //convert promise<string to string typescript
 
-export async function checkForAccessToken(): Promise<string> {
-  const url = await  chrome.identity.launchWebAuthFlow({
-      interactive: true,
-      url: AUTH_URL,
-  });
- const accessToken = extractAccessToken(url!);
-  return accessToken as string;
-}
 
-export function getAccessToken() {
-  return authorize().then((redirectURL: string | undefined) => validate(redirectURL!));
-}
+
+//sign out the user
 export async function Signout() {
   chrome.identity.launchWebAuthFlow(
     { 'url': 'https://accounts.google.com/logout' }
 );
 ls.clear();
-
-  
-
-
 }
 
 

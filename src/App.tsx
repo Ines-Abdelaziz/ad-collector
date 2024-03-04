@@ -8,7 +8,7 @@ import * as ls from "local-storage";
 //import Logo from './assets/logo.png';
 import Logo from './Logo/logo.svg';
 import LogoDark from './Logo/logo-dark.svg';
-import { getAccessToken,Signout,checkForAccessToken  } from "./auth";
+import { getAccessToken,Signout  } from "./auth";
 import { getUserInfo } from './user-info';
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -25,6 +25,7 @@ function App() {
   function handleDashboardClick() {
    //get user info and redirect to dashboard
    const userId=ls.get<string>('userId');
+   console.log(userId);
    //open user dashboard with user id
    window.open(`https://adcollector-youtube-dashboard-1.onrender.com`, '_blank');    
   }
@@ -33,9 +34,16 @@ function App() {
     setIsLoggedIn(false);
 
   }
+  const userId=ls.get<string>('userId');
+  chrome.storage.local.set({ 'userId': userId });
+
+
     useEffect(() => {
         ls.get<string>('accessToken') ? setIsLoggedIn(true) : setIsLoggedIn(false);
         console.log(isLoggedIn);
+       
+       
+
         
     }, [isLoggedIn]);
 
