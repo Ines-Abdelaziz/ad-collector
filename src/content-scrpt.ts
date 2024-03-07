@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import {API_KEY} from '../env.ts'
+
 const apiKey = API_KEY
 let userId:string = 'N/A';
 console.log('Content script loaded.');
@@ -8,8 +9,9 @@ chrome.runtime.sendMessage({ action: "getUserId" }).then((response) => {
     userId = response.userId;
     console.log(userId);
 });
-//inerfaces for the data ///////////////////////////////////////
+//inerfaces for the data /////////////////////////////////////// 
 interface adinfo{
+    adlink:string;
     advertiser:string;
     advertiser_link:string;
     advertiser_location:string;
@@ -87,15 +89,27 @@ function handleMutations(mutationsList: any[], observer: any) {
      
             let collected= false;
             let adurl;
+          //  let link:string ='https://www.youtube.com/watch?v=';
             //check if the ad center button is present
             if (document.querySelector('[aria-label="My Ad Center"]')) {
                 const adButton = document.querySelector('[aria-label="My Ad Center"]') as HTMLElement;
+                //query select div with class ytp-cued-thumbnail-overlay-image
+             
+
+             
                 if (adButton) {
                    
                     adButton.addEventListener('click', (event) => {
                         //check if the click is made by the script not the user
-                        if(event.screenX === 0 && event.screenY === 0){                       
+                        if(event.screenX === 0 && event.screenY === 0){  
+                        let adVideoId:string='';                     
                         const popupContainer = document.querySelector('ytd-popup-container') as HTMLElement;
+                        const adOverlay = document.querySelector('.ytp-cued-thumbnail-overlay-image');
+                        if (adOverlay) {
+                             adVideoId = getComputedStyle(adOverlay).backgroundImage?.split('vi/')[1]?.split('/')[0];
+                            console.log(adVideoId);
+                        }
+        
                         //check if the popup container is present
                         if (popupContainer) {
                             popupContainer.style.display = 'none';
@@ -109,7 +123,9 @@ function handleMutations(mutationsList: any[], observer: any) {
                                     if (adurl!==null && adurl!=='about:blank'){
                                         //collect the ad
                                         collected=true;
-                                        collectAd(adurl);
+                                        console.log('collect the ad');
+                                        fetchAdDetails(adurl,adVideoId);
+                                       // collectAd(adurl,adVideoId);
                                     }
                                    
                                 } else {
@@ -166,14 +182,14 @@ function handleMutations(mutationsList: any[], observer: any) {
 
 /////////////////////////////////////////////////////////
 //Main function to collect the ad and  save it////
-async function collectAd(adurl: string ){
+async function collectAd(adurl: string,adVideoId:string ){
 
     //get  the ad info
     let ad_id : number;
     let channel_id:string;
     const user_id=userId;
     
-    await fetchAdDetails(adurl).then(async adinfo => {
+    await fetchAdDetails(adurl,adVideoId).then(async adinfo => {
         if (adinfo) {
             //post the ad info to the backend
             const adreponse=await postAdData(adinfo);
@@ -237,7 +253,7 @@ async function collectAd(adurl: string ){
 //fetchig the data////////////////////////////////////////
 
 //fetching the ad details from the ad url using scraping 
-function fetchAdDetails(url: string): Promise<adinfo|null> {
+function fetchAdDetails(url: string,adVideoId:string): Promise<adinfo|null> {
     return fetch(url)
         .then(response => response.text())
         .then(data => {
@@ -249,7 +265,13 @@ function fetchAdDetails(url: string): Promise<adinfo|null> {
             const advertiserMatch = /<div class="ieH75d-fmcmS">([^<]+)<\/div>/g.exec(data);
             if (advertiserMatch){advertiser = advertiserMatch[1];  advertiser = advertiser.replace(/'&%39;/g, "'");}else {advertiser= 'N/A';}
             const advertiserlinkMatch = /<div class="ZSvcT-uQPRwe-hSRGPd-haAclf">.*?<a href="(.*?)".*?<\/div>/g.exec(data);
-            if (advertiserlinkMatch){advertiserlink = advertiserlinkMatch[1];}else {advertiserlink= 'N/A';}
+            if (advertiserlinkMatch){
+                advertiserlink = advertiserlinkMatch[1];
+                const url = advertiserlink+'&format=VIDEO';
+                scrape(url,adVideoId)
+            
+            
+            }else {advertiserlink= 'N/A';}
             const locationMatch = /<div class="ieH75d-fmcmS">([^<]+)<\/div>.*?<div class="ieH75d-fmcmS">([^<]+)<\/div>/g.exec(data);
             if (locationMatch){location = locationMatch[2];}else {location= 'N/A';}
             // Extract topic information
@@ -277,6 +299,7 @@ function fetchAdDetails(url: string): Promise<adinfo|null> {
             }else{ otherinfo= ['N/A']; }
 
             const adinfo: adinfo = {
+                adlink: adVideoId,
                 advertiser: advertiser,
                 advertiser_link: advertiserlink,
                 advertiser_location: location,
@@ -415,6 +438,19 @@ async function fetchChannelDetails(channelId: string): Promise<ChannelData | nul
     }
 
 }
+
+
+
+
+async function scrape(url: string, adVideoId: string): Promise<void> {
+        const bgimglink='https://i.ytimg.com/vi/'+adVideoId+'/maxresdefault.jpg'
+        chrome.runtime.sendMessage({ action: 'fetchData',url:url,bgimglink:bgimglink }, response => {
+        console.log('Data received:', response);
+        });
+   
+       
+    
+}
 /////////////////////////////////////////////////////////
 
 //saving the data in the database////////////////////////
@@ -505,10 +541,6 @@ function getVideoId(): string | null {
     const urlParams = new URLSearchParams(window.location.search);
     return urlParams.get('v');
 }
-
-//send message to background script to get the user id
-
-
 
 
 
