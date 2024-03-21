@@ -92,18 +92,20 @@ function handleMutations(mutationsList: any[], observer: any) {
           //  let link:string ='https://www.youtube.com/watch?v=';
             //check if the ad center button is present
             if (document.querySelector('[aria-label="My Ad Center"]')) {
-                const adButton = document.querySelector('[aria-label="My Ad Center"]') as HTMLElement;
+                const adButton = document.querySelector('.ytp-ad-button.ytp-ad-button-link.ytp-ad-clickable') as HTMLElement;
                 //query select div with class ytp-cued-thumbnail-overlay-image
              
 
              
                 if (adButton) {
+                    console.log(adButton);
                    
                     adButton.addEventListener('click', (event) => {
                         //check if the click is made by the script not the user
                         if(event.screenX === 0 && event.screenY === 0){  
                         let adVideoId:string='';                     
                         const popupContainer = document.querySelector('ytd-popup-container') as HTMLElement;
+                        console.log(popupContainer);
                         const adOverlay = document.querySelector('.ytp-cued-thumbnail-overlay-image');
                         if (adOverlay) {
                              adVideoId = getComputedStyle(adOverlay).backgroundImage?.split('vi/')[1]?.split('/')[0];
@@ -124,8 +126,9 @@ function handleMutations(mutationsList: any[], observer: any) {
                                         //collect the ad
                                         collected=true;
                                         console.log('collect the ad');
+                                        console.log(adVideoId);
                                         fetchAdDetails(adurl,adVideoId);
-                                       // collectAd(adurl,adVideoId);
+                                        collectAd(adurl,adVideoId);
                                     }
                                    
                                 } else {
@@ -191,6 +194,7 @@ async function collectAd(adurl: string,adVideoId:string ){
     
     await fetchAdDetails(adurl,adVideoId).then(async adinfo => {
         if (adinfo) {
+            console.log(adinfo);
             //post the ad info to the backend
             const adreponse=await postAdData(adinfo);
             if(adreponse){
@@ -203,9 +207,11 @@ async function collectAd(adurl: string,adVideoId:string ){
                     const video_id=getVideoId();
                     await fetchVideoDetails(video_id as string).then(async videoinfo => {
                         if (videoinfo) {
+                            console.log(videoinfo);
                             channel_id=videoinfo.channel_id;
                             await fetchChannelDetails(channel_id).then(async channelinfo => {
                                 if (channelinfo) {
+                                    console.log(channelinfo);
                                     //post the channel info to the backend
                                     const channelresponse= await postChannelData(channelinfo);
                                     if(channelresponse){
@@ -268,7 +274,7 @@ function fetchAdDetails(url: string,adVideoId:string): Promise<adinfo|null> {
             if (advertiserlinkMatch){
                 advertiserlink = advertiserlinkMatch[1];
                 const url = advertiserlink+'&format=VIDEO';
-                scrape(url,adVideoId)
+                //scrape(url,adVideoId)
             
             
             }else {advertiserlink= 'N/A';}
@@ -307,6 +313,7 @@ function fetchAdDetails(url: string,adVideoId:string): Promise<adinfo|null> {
                 google_information: googleinfo,
                 other_information: otherinfo
             };
+            console.log(adinfo);
 
             return adinfo;
             
