@@ -23,6 +23,7 @@ export const manifest: ManifestV3Export = {
     client_id: "852662586348-50t7sehl92p5m9vkb97rnggbcp5pvvgh.apps.googleusercontent.com",
     scopes: ["openid", "email", "profile",'https://www.googleapis.com/auth/userinfo.profile','https://www.googleapis.com/auth/user.birthday.read','https://www.googleapis.com/auth/user.gender.read','https://www.googleapis.com/auth/user.addresses.read']
   },
+
  
   permissions: [
     'webRequest',
@@ -38,7 +39,7 @@ export const manifest: ManifestV3Export = {
     'unlimitedStorage',
     'storage',
     // This permission is needed for "Take a break" feature
-    'alarms'
+    'alarms',
 
 
   ],
