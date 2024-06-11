@@ -36,11 +36,13 @@ it seems to be "aud".
 */
 export async function validate(redirectURL: string) {
   const accessToken = extractAccessToken(redirectURL);
+  console.log(redirectURL);
 if (!accessToken) {
     throw "Authorization failure";
 }
 chrome.storage.local.set({accessToken: accessToken});
 ls.set<string>('accessToken', accessToken);
+console.log(accessToken);
 const validationURL = `${VALIDATION_BASE_URL}?access_token=${accessToken}`;
 const validationRequest = new Request(validationURL, {
     method: "GET"
@@ -69,6 +71,14 @@ function extractAccessToken(redirectUri:string) {
       return null;
     const params = new URLSearchParams(m[1].split("#")[0]);
     return params.get("access_token");
+  }
+
+function extractRefreshToken(redirectUri:string) {
+    const m = redirectUri.match(/[#?](.*)/);
+    if (!m || m.length < 1)
+      return null;
+    const params = new URLSearchParams(m[1].split("#")[0]);
+    return params.get("refresh_token");
   }
 /**
 Authenticate and authorize using browser.identity.launchWebAuthFlow().

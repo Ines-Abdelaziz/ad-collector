@@ -1,11 +1,22 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
+import { set } from 'local-storage';
 import {API_KEY} from '../env.ts'
 import * as he from 'he';
 const apiKey = API_KEY
+let loggedin=false;
 let userId:string = 'N/A';
 
 console.log('Content script loaded.');
+
+chrome.runtime.sendMessage({ action: "getUserId" }).then((response) => {
+    userId = response.userId;
+    console.log(userId);
+    if (userId!=='N/A'){
+        loggedin=true;
+        console.log(loggedin);
+    }
+ });
 
 //inerfaces for the data /////////////////////////////////////// 
 interface adinfo{
@@ -29,37 +40,9 @@ interface VideoData {
     channel_id: string;
     title: string;
     description: string;
-    region_restriction_allowed: string[];
-    region_restriction_blocked: string[];
-    //france rating
-    cnc_rating: string;
-    csa_rating: string;
-    //british rating
-    bbfc_rating: string;
-    //switzerland rating
-    chfilm_rating: string;
-    //belguim rating
-    cicf_rating: string;
-    //germany rating
-    fsk_rating: string;
-    //spain rating
-    icaa_rating: string;
-    //italy rating
-    mibac_rating: string;
-    //canadian rating
-    catv_rating: string;
-    catvfr_rating: string;
-    chvrs_rating: string;
-    //usa rating
-    mpaa_rating: string;
-    mpaat_rating: string;
-    //youtube rating
-    yt_rating: string;
-    made_for_kids: boolean;
     view_count: number;
+    made_for_kids: boolean;
     like_count: number;
-    dislike_count: number;
-    favorite_count: number;
     comment_count: number;
     topic_categories: string[];
 }
@@ -68,9 +51,6 @@ interface ChannelData{
     title:string;
     description:string;
     keywords:string;
-    topic_categories:string[];
-    made_for_kids:boolean;
-    default_language:string;
     country:string;
     view_count:number;
     subscriber_count:number; 
@@ -173,6 +153,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 
+  
+
 /////////////////////////////////////////////////////////
 //Main function to collect the ad and  save it////
 async function collectAd(adurl: string,adVideoId:string ){
@@ -180,7 +162,7 @@ async function collectAd(adurl: string,adVideoId:string ){
     //get  the ad info
     let ad_id : number;
     let channel_id:string;
-    const user_id="003";
+    const user_id=userId;
     
     await fetchAdDetails(adurl,adVideoId).then(async adinfo => {
         if (adinfo) {
@@ -204,6 +186,7 @@ async function collectAd(adurl: string,adVideoId:string ){
                             channel_id=videoinfo.channel_id;
                             await fetchChannelDetails(channel_id).then(async channelinfo => {
                                 if (channelinfo) {
+                                    console.log(channelinfo);
                                     //post the channel info to the backend
                                     console.log(channelinfo); 
                                     const channelresponse= await postChannelData(channelinfo);
@@ -267,7 +250,7 @@ function fetchAdDetails(url: string,adVideoId:string): Promise<adinfo|null> {
             if (advertiserlinkMatch){
                 advertiserlink = advertiserlinkMatch[1];
                 const url = advertiserlink+'&format=VIDEO';
-                scrape(url,adVideoId)
+                //scrape(url,adVideoId)
             
             
             }else {advertiserlink= 'N/A';}
@@ -306,6 +289,7 @@ function fetchAdDetails(url: string,adVideoId:string): Promise<adinfo|null> {
                 google_information: googleinfo,
                 other_information: otherinfo
             };
+            console.log(adinfo);
 
             return adinfo;
             
@@ -327,8 +311,7 @@ async function fetchVideoDetails(videoId: string): Promise<VideoData | null> {
         if (data.items && data.items.length > 0) {
 
             const videosnippet = data.items[0].snippet;
-            const videocontentDetails = data.items[0].contentDetails;
-            const videocontentRating = data.items[0].contentDetails.contentRating;
+          
             const videoStatus = data.items[0].status;
             const videoStatistics = data.items[0].statistics;
             const videoTopicDetails = data.items[0].topicDetails;
@@ -336,27 +319,10 @@ async function fetchVideoDetails(videoId: string): Promise<VideoData | null> {
             const channelId = (videosnippet.channelId)?videosnippet.channelId : 'N/A';
             const title = (videosnippet.title)?videosnippet.title : 'N/A';
             const description = (videosnippet.description)?videosnippet.description : 'N/A';
-            const region_restriction_allowed = (videocontentDetails.regionRestriction && videocontentDetails.regionRestriction.allowed)?videocontentDetails.regionRestriction.allowed : ['N/A'];
-            const region_restriction_blocked = (videocontentDetails.regionRestriction && videocontentDetails.regionRestriction.blocked)?videocontentDetails.regionRestriction.blocked : ['N/A'];
-            const cnc_rating = (videocontentRating && videocontentRating.cncRating)?videocontentRating.cncRating : 'N/A';
-            const csa_rating = (videocontentRating && videocontentRating.csaRating)?videocontentRating.csaRating : 'N/A';
-            const bbfc_rating = (videocontentRating && videocontentRating.bbfcRating)?videocontentRating.bbfcRating : 'N/A';
-            const chfilm_rating = (videocontentRating && videocontentRating.chfilmRating)?videocontentRating.chfilmRating : 'N/A';
-            const cicf_rating = (videocontentRating && videocontentRating.cicfRating)?videocontentRating.cicfRating : 'N/A';
-            const fsk_rating = (videocontentRating && videocontentRating.fskRating)?videocontentRating.fskRating : 'N/A';
-            const icaa_rating = (videocontentRating && videocontentRating.icaaRating)?videocontentRating.icaaRating : 'N/A';
-            const mibac_rating = (videocontentRating && videocontentRating.mibacRating)?videocontentRating.mibacRating : 'N/A';
-            const catv_rating = (videocontentRating && videocontentRating.catvRating)?videocontentRating.catvRating : 'N/A';
-            const catvfr_rating = (videocontentRating && videocontentRating.catvfrRating)?videocontentRating.catvfrRating : 'N/A';
-            const chvrs_rating = (videocontentRating && videocontentRating.chvrsRating)?videocontentRating.chvrsRating : 'N/A';
-            const mpaa_rating = (videocontentRating && videocontentRating.mpaaRating)?videocontentRating.mpaaRating : 'N/A';
-            const mpaat_rating = (videocontentRating && videocontentRating.mpaatRating)?videocontentRating.mpaatRating : 'N/A';
-            const yt_rating = (videocontentRating && videocontentRating.ytRating)?videocontentRating.ytRating : 'N/A';
+           
             const made_for_kids = (videoStatus.madeForKids)?videoStatus.madeForKids : false;
             const view_count = (videoStatistics.viewCount)?videoStatistics.viewCount : Number(0);
             const like_count = (videoStatistics.likeCount)?videoStatistics.likeCount : Number(0);
-            const dislike_count = (videoStatistics.dislikeCount)?videoStatistics.dislikeCount : Number(0);
-            const favorite_count = (videoStatistics.favoriteCount)?videoStatistics.favoriteCount : Number(0);
             const comment_count = (videoStatistics.commentCount)?videoStatistics.commentCount : Number(0);
             const topic_categories = (videoTopicDetails.topicCategories)?videoTopicDetails.topicCategories : ['N/A'];
             const videoData: VideoData = {
@@ -365,27 +331,9 @@ async function fetchVideoDetails(videoId: string): Promise<VideoData | null> {
                 channel_id: channelId,
                 title: title,
                 description: description,
-                region_restriction_allowed: region_restriction_allowed,
-                region_restriction_blocked: region_restriction_blocked,
-                cnc_rating: cnc_rating,
-                csa_rating: csa_rating,
-                yt_rating: yt_rating,
-                bbfc_rating: bbfc_rating,
-                chfilm_rating: chfilm_rating,
-                cicf_rating: cicf_rating,
-                fsk_rating: fsk_rating,
-                icaa_rating: icaa_rating,
-                mibac_rating: mibac_rating,
-                catv_rating: catv_rating,
-                catvfr_rating: catvfr_rating,
-                chvrs_rating: chvrs_rating,
-                mpaa_rating: mpaa_rating,
-                mpaat_rating: mpaat_rating,
                 made_for_kids: made_for_kids,
                 view_count: view_count,
                 like_count: like_count,
-                dislike_count: dislike_count,
-                favorite_count: favorite_count,
                 comment_count: comment_count,
                 topic_categories: topic_categories
             };
@@ -418,9 +366,6 @@ async function fetchChannelDetails(channelId: string): Promise<ChannelData | nul
                 title: (channelSnippet.title)?channelSnippet.title : 'N/A',
                 description: (channelSnippet.description)?channelSnippet.description : 'N/A',
                 keywords: (channelBrandingSettings.channel && channelBrandingSettings.channel.keywords)?channelBrandingSettings.channel.keywords : 'N/A',
-                topic_categories: (channelSnippet.topicCategories)?channelSnippet.topicCategories : ['N/A'],
-                made_for_kids: (channelBrandingSettings.channel && channelBrandingSettings.channel.madeForKids)?channelBrandingSettings.channel.madeForKids : false,
-                default_language: (channelBrandingSettings.channel && channelBrandingSettings.channel.defaultLanguage)?channelBrandingSettings.channel.defaultLanguage : 'N/A',
                 country: (channelSnippet.country)?channelSnippet.country : 'N/A',
                 view_count: (channelStatistics.viewCount)?channelStatistics.viewCount : Number(0),
                 video_count: (channelStatistics.videoCount)?channelStatistics.videoCount : Number(0),
@@ -550,6 +495,34 @@ function linkAdToUser(ad_id:number,video_id:string,channel_id:string, user_id:st
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({ad_id:ad_id,video_id:video_id,channel_id:channel_id,user_id:user_id})
+        });
+
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+function incrementVideoCount(userId:string): void {
+    try {
+        fetch('https://ad-collector.onrender.com/increment-watch-count', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({userId:userId})
+        });
+
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+function postWatchHistory(userId:string,videoId:string): void {
+    try {
+        fetch('https://ad-collector.onrender.com/watch-history', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({user_id:userId,video_id:videoId})
         });
 
     } catch (error) {

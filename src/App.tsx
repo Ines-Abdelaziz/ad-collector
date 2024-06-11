@@ -10,6 +10,7 @@ import Logo from './Logo/logo.svg';
 import LogoDark from './Logo/logo-dark.svg';
 import { getAccessToken,Signout  } from "./auth";
 import { getUserInfo } from './user-info';
+import axios from 'axios';
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
@@ -18,34 +19,61 @@ function App() {
       //get the data of this promise 
       setIsLoggedIn(true);
      const accessToken = await getAccessToken();
+     console.log(accessToken);
      getUserInfo(accessToken as any);
 
       
   }
+  const userId=ls.get<string>('userId');
+
+
+  
+
+
+  useEffect(() => {
+      ls.get<string>('userId') ? setIsLoggedIn(true) : setIsLoggedIn(false);
+      console.log('id:',userId);
+     
+     
+
+      
+  }, [userId]);
+
   function handleDashboardClick() {
    //get user info and redirect to dashboard
+   console.log('Dashboard clicked');
    const userId=ls.get<string>('userId');
-   console.log(userId);
-   //open user dashboard with user id
-   window.open(`https://adcollector-youtube-dashboard-1.onrender.com`, '_blank');    
+   const accessToken=ls.get<string>('accessToken');
+
+   const authresponse={token:accessToken,userId:userId};
+   
+   console.log(authresponse);
+   redirectDashboard(authresponse);
+ 
   }
+  interface AuthResponse{
+    token: string;
+    userId: string;
+  }
+    async function redirectDashboard(authresponse:AuthResponse) {
+        //post request to the server to get the user dashboard
+        //https://adcollector-youtube-dashboard-1.onrender.com
+        axios.post('https://ad-collector.onrender.com/user/authenticate', { token: authresponse.token, userId: authresponse.userId })
+        .then(function (response) {
+            console.log(response);
+            if (response.data) {
+                window.open(`https://adcollector-youtube-dashboard.onrender.com/${userId}`, '_blank');
+            }
+        }).catch(function (error) {
+                console.log(error);
+                });
+        
+}
   async function handleSignoutClick() {
     Signout();
     setIsLoggedIn(false);
 
   }
-  const userId=ls.get<string>('userId');
-  chrome.storage.local.set({ 'userId': userId });
-
-
-    useEffect(() => {
-        ls.get<string>('accessToken') ? setIsLoggedIn(true) : setIsLoggedIn(false);
-        console.log(isLoggedIn);
-       
-       
-
-        
-    }, [isLoggedIn]);
 
   return (
     <>
