@@ -1,14 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import {API_KEY} from '../env.ts'
-
+import * as he from 'he';
 const apiKey = API_KEY
 let userId:string = 'N/A';
+
 console.log('Content script loaded.');
-chrome.runtime.sendMessage({ action: "getUserId" }).then((response) => {
-    userId = response.userId;
-    console.log(userId);
-});
+
 //inerfaces for the data /////////////////////////////////////// 
 interface adinfo{
     adlink:string;
@@ -18,6 +16,11 @@ interface adinfo{
     topic:string[];
     google_information:string[];
     other_information:string[];
+
+}
+interface transcript{
+    adlink:string;
+    transcript:string[];
 
 }
 interface VideoData {
@@ -70,115 +73,105 @@ interface ChannelData{
     default_language:string;
     country:string;
     view_count:number;
-    subscriber_count:number;
+    subscriber_count:number; 
     video_count:number;
 
 }
-
-/////////////////////////////////////////////////////////
-// MutationObserver to detect ad popups//////////////////
-//this function detects the ad then simulates a click on the ad center button, hides the popup and gets the ad url
-
-// Callback function to handle mutations in the DOM
-function handleMutations(mutationsList: any[], observer: any) {
-    mutationsList.forEach((mutation: {
-        addedNodes: any; target: { nodeType: number; classList: { contains: (arg0: string) => any; }; }; type: any; oldValue: any; 
-}) => {
-      // Check if mutation concerns an element node and if it has the class "ytp-ad-module"
-      if (mutation.target && mutation.target.nodeType === Node.ELEMENT_NODE && mutation.target.classList.contains('ytp-ad-module')) {
-     
-            let collected= false;
-            let adurl;
-          //  let link:string ='https://www.youtube.com/watch?v=';
-            //check if the ad center button is present
-            if (document.querySelector('[aria-label="My Ad Center"]')) {
-                const adButton = document.querySelector('[aria-label="My Ad Center"]') as HTMLElement;
-                //query select div with class ytp-cued-thumbnail-overlay-image
-             
-
-             
-                if (adButton) {
-                   
-                    adButton.addEventListener('click', (event) => {
-                        //check if the click is made by the script not the user
-                        if(event.screenX === 0 && event.screenY === 0){  
-                        let adVideoId:string='';                     
-                        const popupContainer = document.querySelector('ytd-popup-container') as HTMLElement;
-                        const adOverlay = document.querySelector('.ytp-cued-thumbnail-overlay-image');
-                        if (adOverlay) {
-                             adVideoId = getComputedStyle(adOverlay).backgroundImage?.split('vi/')[1]?.split('/')[0];
-                            console.log(adVideoId);
-                        }
-        
-                        //check if the popup container is present
-                        if (popupContainer) {
-                            popupContainer.style.display = 'none';
-                            //add timeout to wait for iframe to load
-                            setTimeout(() => {
-                                const iframe = document.getElementById('iframe') as HTMLElement;
-                                if (iframe) {
-                                    //get the ad url
-                                    adurl= iframe.getAttribute('src');
-                                    //make sure the ad url is not null and not about:blank 
-                                    if (adurl!==null && adurl!=='about:blank'){
-                                        //collect the ad
-                                        collected=true;
-                                        console.log('collect the ad');
-                                        fetchAdDetails(adurl,adVideoId);
-                                       // collectAd(adurl,adVideoId);
-                                    }
-                                   
-                                } else {
-                                    adButton.click();
-                                }
-                            }, 3000);
-                           
-                        }else{
-                            adButton.click();}
-                        if(!collected){
-                            adButton.click();
-                        }
-                        
-                   
-                    }
+function observeDOMForIframe(adVideoId: string, className: string, state: { collected: boolean }) {
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            if (mutation.type === 'attributes' && mutation.target.nodeName === 'IFRAME' && mutation.target instanceof HTMLIFrameElement) {
+                const iframe = mutation.target as HTMLIFrameElement;
+                if (iframe.className == className) {
+                    checkIframeSrc(iframe, adVideoId, observer, state);
                 }
-                     
-                    );
-                    adButton.click();
-                }
-                
-            }
-
-            collected=false;
-
-          }
-    // if mutation concerns an element node being added
-    if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-        // Iterate over the added nodes
-        mutation.addedNodes.forEach((node: Node) => {
-            //check if the added node is an element and if it matches the tp-yt-iron-overlay-backdrop
-          if (node instanceof HTMLElement && node.matches('tp-yt-iron-overlay-backdrop')) {
-                // remove the dark overlay of the popup that we stopped
-                const element = node as HTMLElement;
-                element.remove();
-               
             }
         });
-    }}
-    
-    );
-  }
-  
+    });
 
-  // Configuration for the MutationObserver
-  const config = { attributes: true, childList: true, subtree: true, characterData: true };
-  
-  // Create a MutationObserver instance
-  const observer = new MutationObserver(handleMutations);
-  
-  // Start observing the entire DOM
-  observer.observe(document.documentElement, config);
-  
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['src'] });
+}
+
+function checkIframeSrc(iframe: HTMLIFrameElement, adVideoId: string, observer: MutationObserver, state: { collected: boolean }) {
+    const iframeSrc = iframe.src;
+    if (iframeSrc && iframeSrc !== 'about:blank') {
+        const regex = /https:\/\/www\.youtube\.com\/aboutthisad\?pf=web.*?theme=/i;
+        const match = iframeSrc.match(regex);
+
+        if (match) {
+            let adurl = match[0];
+            // Replace URL-encoded characters with their corresponding characters
+            adurl = adurl.replace(/\\u0026/g, '&');
+
+            // Call your functions to fetch and collect ad details
+            collectAd(adurl, adVideoId);
+            state.collected = true;
+            observer.disconnect(); // Stop observing once the URL is collected
+        } else {
+            console.log('No match found for the specified pattern.');
+        }
+    }
+}
+
+function checkAndClickAdButton(adVideoId: string) {
+    const state = { collected: false };
+    const adButton = document.querySelector<HTMLElement>('.ytp-ad-button.ytp-ad-button-link.ytp-ad-clickable[aria-label="My Ad Center"]');
+
+    if (adButton) {  // Check if the button is visible
+        adButton.addEventListener('click', (event) => {
+            console.log("Ad button clicked");
+            const popupContainer = document.querySelector('ytd-popup-container') as HTMLElement;
+            const display = popupContainer.style.display;
+            // Check if the click is made by the script (screen coordinates 0, 0)
+            if (event.screenX === 0 && event.screenY === 0) {
+                if (popupContainer) {
+                    popupContainer.style.display = 'none';
+                }
+                observeDOMForIframe(adVideoId, 'style-scope yt-about-this-ad-renderer', state); // Start observing the DOM for iframe right after clicking the ad button
+
+                const playButton = document.querySelector<HTMLElement>('.ytp-play-button.ytp-button[title*="Play (k)"]');
+                if (playButton) {
+                    playButton.click();
+                }
+            } else {
+                popupContainer.style.display = display;
+            }
+        });
+        setTimeout(() => {
+            adButton.click();
+        }, 1000);
+        if (!state.collected) {
+            adButton.click();
+
+        }
+    }
+}
+
+
+// Function to handle new ad detection
+function handleNewAd(adVideoId: string, subtitles: string) {
+    console.log(`Processing ad video ID: ${adVideoId} with subtitles: ${subtitles}`);
+    checkAndClickAdButton(adVideoId);
+}
+
+// Listen for new ad detection messages
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.action === "newAdDetected") {
+        const adVideoId = message.adVideoId;
+        const subtitles = message.sub;
+
+        console.log("New ad detected:");
+        console.log("Video ID:", adVideoId);
+        console.log("Subtitles:", subtitles);
+        var transcriptData: transcript = {
+            adlink: adVideoId, // Assuming adVideoId is the adlink
+            transcript: subtitles // Assuming subtitles is an array of strings representing the transcript
+        };
+        postTranscript(transcriptData);
+        handleNewAd(adVideoId, subtitles);
+    }
+});
+
 
 /////////////////////////////////////////////////////////
 //Main function to collect the ad and  save it////
@@ -187,10 +180,11 @@ async function collectAd(adurl: string,adVideoId:string ){
     //get  the ad info
     let ad_id : number;
     let channel_id:string;
-    const user_id=userId;
+    const user_id="003";
     
     await fetchAdDetails(adurl,adVideoId).then(async adinfo => {
         if (adinfo) {
+            console.log(adinfo);
             //post the ad info to the backend
             const adreponse=await postAdData(adinfo);
             if(adreponse){
@@ -200,13 +194,18 @@ async function collectAd(adurl: string,adVideoId:string ){
                     //ad already exists in db
                     const ad= await adreponse.json();
                     ad_id=ad.ad_id;
-                    const video_id=getVideoId();
+                    var video_id=getVideoId();
+                    const updatedVideoId = video_id;
+                    sendUpdatedVideoIdToBackground(updatedVideoId);
+                  
                     await fetchVideoDetails(video_id as string).then(async videoinfo => {
                         if (videoinfo) {
+                            console.log(videoinfo);
                             channel_id=videoinfo.channel_id;
                             await fetchChannelDetails(channel_id).then(async channelinfo => {
                                 if (channelinfo) {
                                     //post the channel info to the backend
+                                    console.log(channelinfo); 
                                     const channelresponse= await postChannelData(channelinfo);
                                     if(channelresponse){
                                         if(channelresponse.status===202 || channelresponse.status===201){
@@ -441,7 +440,6 @@ async function fetchChannelDetails(channelId: string): Promise<ChannelData | nul
 
 
 
-
 async function scrape(url: string, adVideoId: string): Promise<void> {
         const bgimglink='https://i.ytimg.com/vi/'+adVideoId+'/maxresdefault.jpg'
         chrome.runtime.sendMessage({ action: 'fetchData',url:url,bgimglink:bgimglink }, response => {
@@ -497,6 +495,7 @@ async function postChannelData(channelData: ChannelData): Promise<Response|null>
         return null;
     }
 }
+
 //post ad data to the backend
 async function postAdData(adData: adinfo): Promise<Response |null> {
     try {
@@ -518,6 +517,30 @@ async function postAdData(adData: adinfo): Promise<Response |null> {
         return null;
     }
 }
+
+async function postTranscript(transcriptData : transcript) {
+    try {
+        const response = await fetch('https://ad-collector.onrender.com/transcripts', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(transcriptData)
+        });
+
+        if (response.status !== 201) { 
+            throw new Error('Failed to post transcript data');
+        }
+
+        return response.json(); // Return the response body as JSON
+    } catch (error) {
+        console.error('Error:', error);
+        return null;
+    }
+}
+
+
+
 //link ad with user 
 function linkAdToUser(ad_id:number,video_id:string,channel_id:string, user_id:string): void {
     try {
@@ -535,17 +558,58 @@ function linkAdToUser(ad_id:number,video_id:string,channel_id:string, user_id:st
 }
 
 
-/////////////////////////////////////////////////////////
-// Get the video ID from the YouTube URL
+// Content script
+
+//// Function to get video ID from the YouTube URL
 function getVideoId(): string | null {
     const urlParams = new URLSearchParams(window.location.search);
-    return urlParams.get('v');
+    const videoId = urlParams.get('v');
+    return videoId ? videoId : null;
 }
 
 
+// Function to send the updated video ID to the background script
+function sendUpdatedVideoIdToBackground(video_id: string | null) {
+  
+        chrome.runtime.sendMessage({
+            action: "updateVideoId",
+            updatedVideoId: video_id // Ensure property name matches the one expected by the background script
+        });
+    
+}
 
 
+// Function to update the video ID and send it to the background script whenever it changes
+function updateAndSendVideoId() {
+    const video_id = getVideoId();
+    sendUpdatedVideoIdToBackground(video_id);
+}
+const observer = new MutationObserver((mutationsList) => {
+    for (const mutation of mutationsList) {
+        if (mutation.type === 'attributes' && mutation.attributeName === 'href') {
+            const targetElement = mutation.target as HTMLAnchorElement;
+            if (targetElement.href) {
+                updateAndSendVideoId();
+            }
+            // Break to avoid redundant updates
+            break;
+        }
+        if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+            // Iterate over the added nodes
+            mutation.addedNodes.forEach((node: Node) => {
+                // Check if the added node is an element and if it matches the tp-yt-iron-overlay-backdrop
+                if (node instanceof HTMLElement && node.matches('tp-yt-iron-overlay-backdrop')) {
+                    // Remove the dark overlay of the popup
+                    const element = node as HTMLElement;
+                    element.remove();
+                }
+            });
+        }
+    }
+});
 
+// Start observing mutations on the document
 
-
-
+observer.observe(document, { attributes: true, childList: true, subtree: true, attributeFilter: ['href'] });
+// Initial sending of the video ID when the content script is loaded
+updateAndSendVideoId();

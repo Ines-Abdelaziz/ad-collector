@@ -1,0 +1,64 @@
+// Function to handle ad interaction
+function handleAdInteraction(adVideoId?: string) {
+    if (document.querySelector('[aria-label="My Ad Center"]')) {
+        const adButton = document.querySelector('.ytp-ad-button.ytp-ad-button-link.ytp-ad-clickable') as HTMLElement;
+
+        if (adButton) {
+            console.log(adButton);
+            adButton.addEventListener('click', (event) => {
+                console.log("button clicked");
+                if (event.screenX === 0 && event.screenY === 0) {
+                    const playButton = document.querySelector('.ytp-play-button.ytp-button[title*="Play (k)"]') as HTMLElement;
+                    if (playButton) {
+                        playButton.click();
+                    }
+                    const popupContainer = document.querySelector('ytd-popup-container') as HTMLElement;
+                    
+                    if (popupContainer){
+                    var iframe = popupContainer.querySelector('iframe');
+                    let collected = false;
+
+                    if (iframe) {
+                        console.log("iframe is",iframe);
+                            // Get the text content of the document
+                        const documentText = iframe.contentDocument?.documentElement.textContent;
+                        // Define a regular expression pattern to match the desired sentence
+                        const regex = /https:\/\/www\.youtube\.com\/aboutthisad\?pf=web.*?theme=/i;
+                                                // Use the regular expression to find the first match in the text content
+                        const match = documentText?.match(regex);
+
+                        if (match) {
+                            let adurl = match[0];
+                            console.log("url is",adurl);
+                            // HTML-encode the matched URL
+                                  // Replace URL-encoded characters with their corresponding characters
+                          
+                            adurl = adurl.replace(/\\u0026/g, '&');
+                            console.log('HTML-encoded URL:', adurl);
+                            console.log('collect the ad');
+                            console.log(adVideoId);
+                            fetchAdDetails(adurl, adVideoId!);
+                            collectAd(adurl, adVideoId!);
+                            collected = true;
+                            popupContainer.innerHTML = '<!--css-build:shady--><!--css-build:shady-->';
+
+                        } else {
+                            console.log('No match found for the specified pattern.');
+                        }
+
+                    }
+                    if (!collected) {
+                        adButton.click();
+                    }
+                }
+                else
+                {
+                    adButton.click();
+                }
+            }
+            });
+            adButton.click();
+           
+        }
+    }
+}
