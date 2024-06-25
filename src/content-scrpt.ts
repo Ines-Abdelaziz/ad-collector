@@ -75,9 +75,11 @@ function observeDOMForIframe(adVideoId: string, className: string, state: { coll
 function checkIframeSrc(iframe: HTMLIFrameElement, adVideoId: string, observer: MutationObserver, state: { collected: boolean }) {
     const iframeSrc = iframe.src;
     if (iframeSrc && iframeSrc !== 'about:blank') {
-        const regex = /https:\/\/www\.youtube\.com\/aboutthisad\?pf=web.*?theme=/i;
+        console.log(iframeSrc)
+        const regex = /https:\/\/www\.youtube\.com\/aboutthisad\?pf=web.*?/;
         const match = iframeSrc.match(regex);
-
+        console.log(match)
+        
         if (match) {
             let adurl = match[0];
             // Replace URL-encoded characters with their corresponding characters
