@@ -17,7 +17,7 @@ function App() {
 
   async function handleLoginClick() {
       //get the data of this promise 
-      setIsLoggedIn(true);
+    setIsLoggedIn(true);
      const accessToken = await getAccessToken();
      console.log(accessToken);
      getUserInfo(accessToken as any);

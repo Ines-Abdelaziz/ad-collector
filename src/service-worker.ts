@@ -72,7 +72,7 @@ chrome.webRequest.onCompleted.addListener(
               chrome.tabs.sendMessage(tabs[0].id, {
                 action: "newAdDetected",
                 adVideoId: AdIdParam,
-                sub: concatenatedSubtitles
+                sub: subtitles
               });
             }
           })

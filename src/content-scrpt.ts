@@ -2,7 +2,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { set } from 'local-storage';
 import {API_KEY} from '../env.ts'
-import * as he from 'he';
 const apiKey = API_KEY
 let loggedin=false;
 let userId:string = 'N/A';
@@ -15,6 +14,7 @@ chrome.runtime.sendMessage({ action: "getUserId" }).then((response) => {
     if (userId!=='N/A'){
         loggedin=true;
         console.log(loggedin);
+        console.log('content script userid',userId)
     }
  });
 
@@ -58,12 +58,20 @@ interface ChannelData{
 
 }
 function observeDOMForIframe(adVideoId: string, className: string, state: { collected: boolean }) {
+  const element=document.querySelector('#iframe') as HTMLIFrameElement
+        if (element) {
+                    checkIframeSrc(element, adVideoId, state);
+    
+        }
     const observer = new MutationObserver((mutations) => {
+        
         mutations.forEach((mutation) => {
             if (mutation.type === 'attributes' && mutation.target.nodeName === 'IFRAME' && mutation.target instanceof HTMLIFrameElement) {
                 const iframe = mutation.target as HTMLIFrameElement;
                 if (iframe.className == className) {
-                    checkIframeSrc(iframe, adVideoId, observer, state);
+                    checkIframeSrc(iframe, adVideoId, state);
+                    observer.disconnect(); // Stop observing once the URL is collected
+
                 }
             }
         });
@@ -72,8 +80,9 @@ function observeDOMForIframe(adVideoId: string, className: string, state: { coll
     observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['src'] });
 }
 
-function checkIframeSrc(iframe: HTMLIFrameElement, adVideoId: string, observer: MutationObserver, state: { collected: boolean }) {
+function checkIframeSrc(iframe: HTMLIFrameElement, adVideoId: string, state: { collected: boolean }) {
     const iframeSrc = iframe.src;
+    console.log(iframeSrc)
     if (iframeSrc && iframeSrc !== 'about:blank') {
         console.log(iframeSrc)
         const regex = /https:\/\/www\.youtube\.com\/aboutthisad\?pf=web.*?/;
@@ -88,7 +97,6 @@ function checkIframeSrc(iframe: HTMLIFrameElement, adVideoId: string, observer: 
             // Call your functions to fetch and collect ad details
             collectAd(adurl, adVideoId);
             state.collected = true;
-            observer.disconnect(); // Stop observing once the URL is collected
         } else {
             console.log('No match found for the specified pattern.');
         }
@@ -98,10 +106,11 @@ function checkIframeSrc(iframe: HTMLIFrameElement, adVideoId: string, observer: 
 function checkAndClickAdButton(adVideoId: string) {
     const state = { collected: false };
     const adButton = document.querySelector<HTMLElement>('.ytp-ad-button.ytp-ad-button-link.ytp-ad-clickable[aria-label="My Ad Center"]');
-
     if (adButton) {  // Check if the button is visible
         adButton.addEventListener('click', (event) => {
-            console.log("Ad button clicked");
+            setTimeout(() => {
+                
+           
             const popupContainer = document.querySelector('ytd-popup-container') as HTMLElement;
             const display = popupContainer.style.display;
             // Check if the click is made by the script (screen coordinates 0, 0)
@@ -109,8 +118,9 @@ function checkAndClickAdButton(adVideoId: string) {
                 if (popupContainer) {
                     popupContainer.style.display = 'none';
                 }
+                setTimeout(() => {
                 observeDOMForIframe(adVideoId, 'style-scope yt-about-this-ad-renderer', state); // Start observing the DOM for iframe right after clicking the ad button
-
+                  }, 4000);
                 const playButton = document.querySelector<HTMLElement>('.ytp-play-button.ytp-button[title*="Play (k)"]');
                 if (playButton) {
                     playButton.click();
@@ -118,10 +128,11 @@ function checkAndClickAdButton(adVideoId: string) {
             } else {
                 popupContainer.style.display = display;
             }
+             }, 3000);
         });
         setTimeout(() => {
             adButton.click();
-        }, 1000);
+        }, 3000);
         if (!state.collected) {
             adButton.click();
 
@@ -186,7 +197,7 @@ async function collectAd(adurl: string,adVideoId:string ){
                         if (videoinfo) {
                             console.log(videoinfo);
                             channel_id=videoinfo.channel_id;
-                            await fetchChannelDetails(channel_id).then(async channelinfo => {
+                            await fetchChannelDetails(channel_id,video_id as string).then(async channelinfo => {
                                 if (channelinfo) {
                                     console.log(channelinfo);
                                     //post the channel info to the backend
@@ -306,41 +317,52 @@ function fetchAdDetails(url: string,adVideoId:string): Promise<adinfo|null> {
 // Fetch video details using video Id with the YouTube Data API
 async function fetchVideoDetails(videoId: string): Promise<VideoData | null> {
     const apiUrl = `https://www.googleapis.com/youtube/v3/videos?id=${videoId}&part=snippet,contentDetails,status,statistics,topicDetails&key=${apiKey}`;
+    const api=`https://youtubescrapingapi.onrender.com/video_data?video_id=${videoId}`
 
     try {
-        const response = await fetch(apiUrl);
-        const data = await response.json();
-        if (data.items && data.items.length > 0) {
+        //const response = await fetch(apiUrl);
+        const response= await fetch(api,{
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            }});
+        var data = await response.json();
+        data=data.video_data
+        if (data) {
 
-            const videosnippet = data.items[0].snippet;
+            // const videosnippet = data.items[0].snippet;
           
-            const videoStatus = data.items[0].status;
-            const videoStatistics = data.items[0].statistics;
-            const videoTopicDetails = data.items[0].topicDetails;
-            const published_at= (videosnippet.publishedAt)?videosnippet.publishedAt : 'N/A';
-            const channelId = (videosnippet.channelId)?videosnippet.channelId : 'N/A';
-            const title = (videosnippet.title)?videosnippet.title : 'N/A';
-            const description = (videosnippet.description)?videosnippet.description : 'N/A';
+            // const videoStatus = data.items[0].status;
+            // const videoStatistics = data.items[0].statistics;
+            // const videoTopicDetails = data.items[0].topicDetails;
+            // const published_at= (videosnippet.publishedAt)?videosnippet.publishedAt : 'N/A';
+            // const channelId = (videosnippet.channelId)?videosnippet.channelId : 'N/A';
+            // const title = (videosnippet.title)?videosnippet.title : 'N/A';
+            // const description = (videosnippet.description)?videosnippet.description : 'N/A';
            
-            const made_for_kids = (videoStatus.madeForKids)?videoStatus.madeForKids : false;
-            const view_count = (videoStatistics.viewCount)?videoStatistics.viewCount : Number(0);
-            const like_count = (videoStatistics.likeCount)?videoStatistics.likeCount : Number(0);
-            const comment_count = (videoStatistics.commentCount)?videoStatistics.commentCount : Number(0);
-            const topic_categories = (videoTopicDetails.topicCategories)?videoTopicDetails.topicCategories : ['N/A'];
+            // const made_for_kids = (videoStatus.madeForKids)?videoStatus.madeForKids : false;
+            // const view_count = (videoStatistics.viewCount)?videoStatistics.viewCount : Number(0);
+            // const like_count = (videoStatistics.likeCount)?videoStatistics.likeCount : Number(0);
+            // const comment_count = (videoStatistics.commentCount)?videoStatistics.commentCount : Number(0);
+            // const topic_categories = (videoTopicDetails.topicCategories)?videoTopicDetails.topicCategories : ['N/A'];
+            if (data.made_for_kids=='N/A'){data.made_for_kids=false}
+            data.view_count=convertToBigInt(data.view_count)
+            data.like_count=convertToBigInt(data.like_count)
+            data.comment_count=convertToBigInt(data.comment_count)
             const videoData: VideoData = {
-                video_id: videoId,
-                published_at: published_at,
-                channel_id: channelId,
-                title: title,
-                description: description,
-                made_for_kids: made_for_kids,
-                view_count: view_count,
-                like_count: like_count,
-                comment_count: comment_count,
-                topic_categories: topic_categories
+                video_id: data.video_id,
+                published_at: data.published_at,
+                channel_id: data.channel_id,
+                title: data.title,
+                description: data.description,
+                made_for_kids: data.made_for_kids,
+                view_count: data.view_count,
+                like_count: data.like_count,
+                comment_count: data.comment_count,
+                topic_categories: data.topic_categories
             };
            
-           
+           console.log(videoData)
             return videoData;
         } else {
             //return error saying no data found
@@ -353,26 +375,42 @@ async function fetchVideoDetails(videoId: string): Promise<VideoData | null> {
     }
 }
 //fetching the channel details using the channel Id with youtube data api
-async function fetchChannelDetails(channelId: string): Promise<ChannelData | null> {
+async function fetchChannelDetails(channelId: string,video_id:string): Promise<ChannelData | null> {
     const apiUrl = `https://www.googleapis.com/youtube/v3/channels?id=${channelId}&part=snippet,statistics,brandingSettings&key=${apiKey}`;
+    const api=`https://youtubescrapingapi.onrender.com/video_data?video_id=${video_id}`
 
     try {
-        const response = await fetch(apiUrl);
-        const data = await response.json();
-        if (data.items && data.items.length > 0) {
-            const channelSnippet = data.items[0].snippet;
-            const channelStatistics = data.items[0].statistics;
-            const channelBrandingSettings = data.items[0].brandingSettings;
-            const channelData: ChannelData = {
-                id: channelId,
-                title: (channelSnippet.title)?channelSnippet.title : 'N/A',
-                description: (channelSnippet.description)?channelSnippet.description : 'N/A',
-                keywords: (channelBrandingSettings.channel && channelBrandingSettings.channel.keywords)?channelBrandingSettings.channel.keywords : 'N/A',
-                country: (channelSnippet.country)?channelSnippet.country : 'N/A',
-                view_count: (channelStatistics.viewCount)?channelStatistics.viewCount : Number(0),
-                video_count: (channelStatistics.videoCount)?channelStatistics.videoCount : Number(0),
-                subscriber_count: (channelStatistics.subscriberCount)?channelStatistics.subscriberCount : Number(0)
+        //const response = await fetch(apiUrl);
+        const response = await fetch(api);
+        var data = await response.json();
+        data=data.channel_data
+        if (data) {
+            // const channelSnippet = data.items[0].snippet;
+            // const channelStatistics = data.items[0].statistics;
+            // const channelBrandingSettings = data.items[0].brandingSettings;
+            // const channelData: ChannelData = {
+            //     id: channelId,
+            //     title: (channelSnippet.title)?channelSnippet.title : 'N/A',
+            //     description: (channelSnippet.description)?channelSnippet.description : 'N/A',
+            //     keywords: (channelBrandingSettings.channel && channelBrandingSettings.channel.keywords)?channelBrandingSettings.channel.keywords : 'N/A',
+            //     country: (channelSnippet.country)?channelSnippet.country : 'N/A',
+            //     view_count: (channelStatistics.viewCount)?channelStatistics.viewCount : Number(0),
+            //     video_count: (channelStatistics.videoCount)?channelStatistics.videoCount : Number(0),
+            //     subscriber_count: (channelStatistics.subscriberCount)?channelStatistics.subscriberCount : Number(0)
+            // };
+              data.view_count=convertToBigInt(data.view_count)
+              data.video_count=convertToBigInt(data.video_count)
+              const channelData: ChannelData = {
+                id: data.id,
+                title: data.title,
+                description: data.description,
+                keywords: data.keywords ,
+                country: data.country,
+                view_count: data.view_count ,
+                video_count: data.video_count ,
+                subscriber_count: data.subscriber_count 
             };
+            console.log(channelData)
             return channelData;
         } else {
             console.log('No data found');
@@ -559,8 +597,20 @@ function updateAndSendVideoId() {
     const video_id = getVideoId();
     sendUpdatedVideoIdToBackground(video_id);
 }
-const observer = new MutationObserver((mutationsList) => {
+let url='';
+const observer = new MutationObserver(async (mutationsList) => {
     for (const mutation of mutationsList) {
+        if (loggedin){
+            //check location href if its a youtube video 
+
+            if (window.location.href.includes('youtube.com/watch') && url!==window.location.href){ 
+            url=window.location.href;
+            await incrementVideoCount(userId);
+            await postWatchHistory(userId,getVideoId() as string);
+
+
+
+            }}
         if (mutation.type === 'attributes' && mutation.attributeName === 'href') {
             const targetElement = mutation.target as HTMLAnchorElement;
             if (targetElement.href) {
@@ -588,3 +638,12 @@ const observer = new MutationObserver((mutationsList) => {
 observer.observe(document, { attributes: true, childList: true, subtree: true, attributeFilter: ['href'] });
 // Initial sending of the video ID when the content script is loaded
 updateAndSendVideoId();
+
+function convertToBigInt(viewCount: string): number {
+    // Remove all non-digit characters
+    if (viewCount){
+    const numericString = viewCount.replace(/\D/g, ''); 
+    return Number(numericString);}
+    else return 0
+    
+}
