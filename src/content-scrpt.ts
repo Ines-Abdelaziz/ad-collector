@@ -6,6 +6,11 @@ const apiKey = API_KEY
 let loggedin=false;
 let userId:string = 'N/A';
 
+// //profile 
+// let loggedin=true;
+// let userId= '100746920764406569411';
+
+
 console.log('Content script loaded.');
 
 chrome.runtime.sendMessage({ action: "getUserId" }).then((response) => {
@@ -82,24 +87,11 @@ function observeDOMForIframe(adVideoId: string, className: string, state: { coll
 
 function checkIframeSrc(iframe: HTMLIFrameElement, adVideoId: string, state: { collected: boolean }) {
     const iframeSrc = iframe.src;
-    console.log(iframeSrc)
     if (iframeSrc && iframeSrc !== 'about:blank') {
-        console.log(iframeSrc)
-        const regex = /https:\/\/www\.youtube\.com\/aboutthisad\?pf=web.*?/;
-        const match = iframeSrc.match(regex);
-        console.log(match)
-        
-        if (match) {
-            let adurl = match[0];
-            // Replace URL-encoded characters with their corresponding characters
-            adurl = adurl.replace(/\\u0026/g, '&');
-
-            // Call your functions to fetch and collect ad details
-            collectAd(adurl, adVideoId);
-            state.collected = true;
-        } else {
-            console.log('No match found for the specified pattern.');
-        }
+        const adurl=iframeSrc
+        collectAd(adurl, adVideoId);
+        state.collected = true;
+      
     }
 }
 
@@ -176,24 +168,32 @@ async function collectAd(adurl: string,adVideoId:string ){
     let ad_id : number;
     let channel_id:string;
     const user_id=userId;
+    let ad_added=false;
+    let video_added=false;
+    let channel_added=false;
     
     await fetchAdDetails(adurl,adVideoId).then(async adinfo => {
         if (adinfo) {
             console.log(adinfo);
             //post the ad info to the backend
-            const adreponse=await postAdData(adinfo);
-            if(adreponse){
+            await postAdData(adinfo).then(async adreponse => {
+                if(adreponse){
                 if(adreponse.status===202 || adreponse.status===201){
-                    if (adreponse.status===202){console.log('Ad already exists in db');}
-                    if (adreponse.status===201){console.log('Ad added to db');}
+                    if (adreponse.status===202){
+                        console.log('Ad already exists in db');
+                        ad_added=true;
+                    }
+                    if (adreponse.status===201){
+                        console.log('Ad added to db');
+                    }
                     //ad already exists in db
-                    const ad= await adreponse.json();
-                    ad_id=ad.ad_id;
+                    adreponse.json().then(async ad => {
+                    const ad_id = ad.ad_id;
+                    console.log(ad)
                     var video_id=getVideoId();
                     const updatedVideoId = video_id;
                     sendUpdatedVideoIdToBackground(updatedVideoId);
-                  
-                    await fetchVideoDetails(video_id as string).then(async videoinfo => {
+                    fetchVideoDetails(video_id as string).then(async videoinfo => {
                         if (videoinfo) {
                             console.log(videoinfo);
                             channel_id=videoinfo.channel_id;
@@ -205,19 +205,27 @@ async function collectAd(adurl: string,adVideoId:string ){
                                     const channelresponse= await postChannelData(channelinfo);
                                     if(channelresponse){
                                         if(channelresponse.status===202 || channelresponse.status===201){
-                                            if (channelresponse.status===202){console.log('Channel already exists in db');}
+                                            if (channelresponse.status===202){
+                                                console.log('Channel already exists in db');
+                                                channel_added=true;
+
+                                            }
                                             if (channelresponse.status===201){console.log('Channel added to db');}
                                             const videoreponse=await postVideoData(videoinfo);
                                             if(videoreponse){
                                                 if(videoreponse.status===201 || videoreponse.status===202){
-                                                    if (videoreponse.status===202){console.log('Video already exists in db');}
+                                                    if (videoreponse.status===202){console.log('Video already exists in db');
+                                                        video_added=true;
+                                                    }
                                                     if (videoreponse.status===201){console.log('Video added to db');}
                                                     console.log(ad_id, video_id, channel_id, user_id);
                                                     if(ad_id && video_id && channel_id && user_id){
 
-
+                                                        if (ad_added && video_added && channel_added){
+                                                            console.log("video already collected")
+                                                        }else{
                                                         linkAdToUser(ad_id, video_id, channel_id, user_id );
-                                                        console.log('Ad collected');
+                                                        console.log('Ad collected');}
                                                     }
                                                    
                                                     
@@ -234,16 +242,18 @@ async function collectAd(adurl: string,adVideoId:string ){
                            
                         }
                     });
+                    })
+                 }
+                }
+            })      
+                    
                 }
                
-            }
+            })
+            
+            
         }
-    });
-    
-    
-       
 
-}
 /////////////////////////////////////////////////////////
 //fetchig the data////////////////////////////////////////
 
@@ -258,7 +268,9 @@ function fetchAdDetails(url: string,adVideoId:string): Promise<adinfo|null> {
             let advertiserlink;
             // Extract advertiser information
             const advertiserMatch = /<div class="ieH75d-fmcmS">([^<]+)<\/div>/g.exec(data);
-            if (advertiserMatch){advertiser = advertiserMatch[1];  advertiser = advertiser.replace(/'&%39;/g, "'");}else {advertiser= 'N/A';}
+            if (advertiserMatch){advertiser = advertiserMatch[1];  advertiser = advertiser.replace(/'&%39;/g, "'");}else {
+                advertiser= 'N/A';
+            }
             const advertiserlinkMatch = /<div class="ZSvcT-uQPRwe-hSRGPd-haAclf">.*?<a href="(.*?)".*?<\/div>/g.exec(data);
             if (advertiserlinkMatch){
                 advertiserlink = advertiserlinkMatch[1];
@@ -425,15 +437,8 @@ async function fetchChannelDetails(channelId: string,video_id:string): Promise<C
 
 
 
-async function scrape(url: string, adVideoId: string): Promise<void> {
-        const bgimglink='https://i.ytimg.com/vi/'+adVideoId+'/maxresdefault.jpg'
-        chrome.runtime.sendMessage({ action: 'fetchData',url:url,bgimglink:bgimglink }, response => {
-        console.log('Data received:', response);
-        });
-   
-       
-    
-}
+
+
 /////////////////////////////////////////////////////////
 
 //saving the data in the database////////////////////////
@@ -529,7 +534,7 @@ async function postTranscript(transcriptData : transcript) {
 //link ad with user 
 function linkAdToUser(ad_id:number,video_id:string,channel_id:string, user_id:string): void {
     try {
-        fetch('https://ad-collector.onrender.com/user-ad-video', {
+        fetch('https://ad-collector.onrender.com/user-ad', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -600,9 +605,10 @@ function updateAndSendVideoId() {
 let url='';
 const observer = new MutationObserver(async (mutationsList) => {
     for (const mutation of mutationsList) {
+        if (mutation.type === 'attributes' && mutation.attributeName === 'href') {
         if (loggedin){
             //check location href if its a youtube video 
-
+            
             if (window.location.href.includes('youtube.com/watch') && url!==window.location.href){ 
             url=window.location.href;
             await incrementVideoCount(userId);
@@ -610,7 +616,7 @@ const observer = new MutationObserver(async (mutationsList) => {
 
 
 
-            }}
+            }}}
         if (mutation.type === 'attributes' && mutation.attributeName === 'href') {
             const targetElement = mutation.target as HTMLAnchorElement;
             if (targetElement.href) {
