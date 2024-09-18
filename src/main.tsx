@@ -5,7 +5,5 @@ import App from './App.tsx'
 import './css/style.css';
 import './css/satoshi.css';
 ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
     <App />
-  </React.StrictMode>,
 )

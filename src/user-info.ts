@@ -10,7 +10,7 @@ import * as ls from "local-storage";
 
 //interface for user info
 interface UserInfo {
-    user_id: string;
+    id: string;
     age: string;
     gender: string;
     country: string;
@@ -50,7 +50,7 @@ export function getUserInfo(token: string) {
             .then(async function(data) {
                 ls.set('userId',  data.metadata.sources[0].id);
                 const userInfo: UserInfo = {
-                    user_id: data.metadata.sources[0].id,
+                    id: data.metadata.sources[0].id,
                      // You may want to consider if token hashing is the appropriate way to generate user IDs
                     age: (
                         data.birthdays && 
@@ -77,7 +77,7 @@ export function getUserInfo(token: string) {
 // Post user data to the server  
 async function postUserData (userData:UserInfo): Promise<void> {
         try {
-            const response = await fetch('https://ad-collector.onrender.com/users', {
+            const response = await fetch('http://localhost:3000/user', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -100,3 +100,5 @@ async function postUserData (userData:UserInfo): Promise<void> {
 export function getUserId() {
     return ls.get<string>('userId');
 }
+
+

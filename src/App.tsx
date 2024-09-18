@@ -4,6 +4,7 @@ import React, { useState,useEffect, } from 'react';
 import { Link } from 'react-router-dom';
 import * as ls from "local-storage";
 
+
 //import './App.css';
 //import Logo from './assets/logo.png';
 import Logo from './Logo/logo.svg';
@@ -13,7 +14,7 @@ import { getUserInfo } from './user-info';
 import axios from 'axios';
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-
+  console.log("heeey this is app.tsx")
 
   async function handleLoginClick() {
       //get the data of this promise 
@@ -21,22 +22,15 @@ function App() {
      const accessToken = await getAccessToken();
      console.log(accessToken);
      getUserInfo(accessToken as any);
-
       
   }
   const userId=ls.get<string>('userId');
-
-
-  
-
-
   useEffect(() => {
       ls.get<string>('userId') ? setIsLoggedIn(true) : setIsLoggedIn(false);
       console.log('id:',userId);
-     
-     
-
-      
+      if (userId) {
+        chrome.runtime.sendMessage({ type: 'USER_ID', userId: userId });
+      }
   }, [userId]);
 
   function handleDashboardClick() {
