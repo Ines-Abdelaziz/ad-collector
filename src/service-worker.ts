@@ -53,7 +53,6 @@ interface ChannelData{
 let proceed = false ; 
 // Listen for messages in the background script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  console.log('Background received message:', message);
   if (message.type === 'USER_ID') {
     console.log('User ID received:', message.userId);
     userId = message.userId;
@@ -101,7 +100,6 @@ chrome.webRequest.onCompleted.addListener(
     if (details.url.startsWith("https://www.youtube.com/ptracking?html5=1&video_id=")) {
       const urlParams = new URLSearchParams(new URL(details.url).search);
       const AdIdParam = urlParams.get('video_id');
-      console.log("found a network call of new video", details.url);
 
       if (AdIdParam && !processedVideoIds.has(AdIdParam) && AdIdParam !== currentVideoId && currentVideoId !== null) {
         processedVideoIds.add(AdIdParam);
@@ -139,6 +137,27 @@ chrome.webRequest.onCompleted.addListener(
   function (details) {
     if ((details.url.startsWith("https://www.youtube.com/aboutthisad?pf=web&source=youtube&reasons=")) && (proceed)) {
       collectAd(details.url,adVideoId);
+      let subtitles : string[];
+      YoutubeTranscript.fetchTranscript(adVideoId).then(transcript => {
+        console.log("I entred fetch transcripts");
+        // Save the raw transcripts without decoding HTML entities
+        subtitles = transcript.map(sub => sub.text);
+        console.log("subtitles are",subtitles);
+        // Concatenate all subtitles into a single string
+        let concatenatedSubtitles = subtitles.join(' ');
+        // Encode single quotes '&#39;' entities back to '&#39;'
+        concatenatedSubtitles = concatenatedSubtitles.replace(/&amp;#39;/g, "'");
+        var transcriptData: transcript = {
+          ad_id: adVideoId, // Assuming adVideoId is the adlink
+          transcript: subtitles}; // Assuming subtitles is an array of strings representing the transcript
+          console.log("transcript data is",transcriptData);
+          postTranscript(transcriptData);
+
+      })
+      .catch(error => {
+      console.error("Error fetching transcript:", error);
+      })
+
       proceed=false
   }},
   { urls: ["<all_urls>"] }
@@ -168,7 +187,7 @@ async function collectAd(url: string, adVideoId: string) {
       let advertiserLink = 'N/A';
       let googleInfo = ['N/A'];
       let otherInfo = ['N/A'];
-      let brand;
+      let brand = 'N/A';
       // Extract advertiser information
       const advertiserMatch = /<div class="ieH75d-fmcmS">([^<]+)<\/div>/g.exec(data);
       if (advertiserMatch) {
@@ -218,7 +237,7 @@ async function collectAd(url: string, adVideoId: string) {
       if (otherInfoMatches) {
         otherInfo = otherInfoMatches.map(li => li.replace(/<\/?[^>]+(>|$)/g, ""));
       }
-
+      console.log("other info",otherInfo);
       // Return the extracted information
       return {
         adinfo: {
@@ -307,6 +326,7 @@ async function collectAd(url: string, adVideoId: string) {
 
 // Fetch video details using video Id with the YouTube Data API
 async function fetchVideoDetails(videoId: string): Promise<VideoData | null> {
+  console.log(" I entered fetch video details");
   const api=`https://youtubescrapingapi.onrender.com/video_data?video_id=${videoId}`
   try {
       //const response = await fetch(apiUrl);
@@ -478,7 +498,7 @@ async function postTranscript(transcriptData :transcript) {
       if (response.status !== 201) { 
           throw new Error('Failed to post transcript data');
       }
-
+      console.log("transcript response",response);
       return response.json(); // Return the response body as JSON
   } catch (error) {
       console.error('Error:', error);

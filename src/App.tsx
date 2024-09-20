@@ -52,11 +52,11 @@ function App() {
     async function redirectDashboard(authresponse:AuthResponse) {
         //post request to the server to get the user dashboard
         //https://adcollector-youtube-dashboard-1.onrender.com
-        axios.post('https://ad-collector.onrender.com/user/authenticate', { token: authresponse.token, userId: authresponse.userId })
+        axios.post('http://localhost:3000/user/authenticate', { token: authresponse.token, userId: authresponse.userId })
         .then(function (response) {
             console.log(response);
             if (response.data) {
-                window.open(`https://adcollector-youtube-dashboard.onrender.com/${userId}`, '_blank');
+                window.open(`http://localhost:5173/${userId}`, '_blank');
             }
         }).catch(function (error) {
                 console.log(error);

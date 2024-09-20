@@ -24,13 +24,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.action === "newAdDetected") {
+    if (message.action === "new AdDetected") {
         console.log("new ad detected")
         const adButton = document.querySelector<HTMLElement>('.ytp-ad-button.ytp-ad-button-link.ytp-ad-clickable[aria-label="My Ad Center"]');
-        console.log("ad button", adButton);
         
         if (adButton) {
             // Click the ad button
+            console.log("About this ad button clicked");
+
             adButton.click();
             const iframe = document.querySelector<HTMLIFrameElement>('iframe[src*="aboutthisad"]');
                     const popupContainer = document.querySelector<HTMLElement>('ytd-popup-container');
@@ -38,13 +39,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     if (iframe) {
                         // Hide the iframe or the popup container when it's detected
                         iframe.style.display = 'none';
-                        console.log("Ad iframe hidden");
                     }
 
                     if (popupContainer) {
                         // Hide the popup container
                         popupContainer.style.display = 'none';
-                        console.log("Popup container hidden");
                     }
             // Optional: Click the play button to continue video after ad
             const playButton = document.querySelector<HTMLElement>('.ytp-play-button.ytp-button[title*="Play (k)"]');
