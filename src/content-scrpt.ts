@@ -13,15 +13,7 @@ let userId:string = 'N/A';
 
 console.log('Content script loaded.');
 
-chrome.runtime.sendMessage({ action: "getUserId" }).then((response) => {
-    userId = response.userId;
-    console.log(userId);
-    if (userId!=='N/A'){
-        loggedin=true;
-        console.log(loggedin);
-        console.log('content script userid',userId)
-    }
- });
+
 
 //inerfaces for the data /////////////////////////////////////// 
 interface adinfo{
@@ -97,16 +89,18 @@ function checkIframeSrc(iframe: HTMLIFrameElement, adVideoId: string, state: { c
 
 function checkAndClickAdButton(adVideoId: string) {
     const state = { collected: false };
-    const adButton = document.querySelector<HTMLElement>('.ytp-ad-button.ytp-ad-button-link.ytp-ad-clickable[aria-label="My Ad Center"]');
+    const adButton = document.querySelector('button.ytp-ad-button-link') as HTMLElement;
+    console.log(adButton);
     if (adButton) {  // Check if the button is visible
         adButton.addEventListener('click', (event) => {
             setTimeout(() => {
                 
            
-            const popupContainer = document.querySelector('ytd-popup-container') as HTMLElement;
+            const popupContainer = document.querySelector<HTMLElement>("body ytd-app ytd-popup-container") as HTMLElement;
             const display = popupContainer.style.display;
             // Check if the click is made by the script (screen coordinates 0, 0)
             if (event.screenX === 0 && event.screenY === 0) {
+                console.log('Clicking the ad button');
                 if (popupContainer) {
                     popupContainer.style.display = 'none';
                 }
@@ -152,7 +146,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             adlink: adVideoId, // Assuming adVideoId is the adlink
             transcript: subtitles // Assuming subtitles is an array of strings representing the transcript
         };
-        postTranscript(transcriptData);
+        //postTranscript(transcriptData);
         handleNewAd(adVideoId, subtitles);
     }
 });

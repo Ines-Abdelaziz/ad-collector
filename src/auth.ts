@@ -4,8 +4,8 @@
 import * as ls from "local-storage";
 //config for google auth
 const REDIRECT_URL = chrome.identity.getRedirectURL();
-const CLIENT_ID = "852662586348-50t7sehl92p5m9vkb97rnggbcp5pvvgh.apps.googleusercontent.com";
-const SCOPES = ["openid", "email", "profile",'https://www.googleapis.com/auth/userinfo.profile','https://www.googleapis.com/auth/user.birthday.read','https://www.googleapis.com/auth/user.gender.read','https://www.googleapis.com/auth/user.addresses.read'];
+const CLIENT_ID = "990873631480-dbatunb7pthg4tdja4m9v50uoj4f9cvh.apps.googleusercontent.com";
+const SCOPES = ["openid"];
 const AUTH_URL =
 `https://accounts.google.com/o/oauth2/auth\
 ?client_id=${CLIENT_ID}\

@@ -4,21 +4,6 @@ console.log('Service Worker Loaded');
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import axios from 'axios';
 
-console.log('Service Worker Loaded');   
-let userId: string;
-chrome.storage.local.get('userId').then((data: any) => userId = data.userId);
-
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.action === 'getUserId') {
-        console.log('User ID1:', userId);
-        sendResponse({ userId: userId });
-    }
-});
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.userId) {
-        console.log('User ID:', message.userId);
-    }
-});
 
 import { YoutubeTranscript } from 'youtube-transcript';
 let currentVideoId: string | null = null;
